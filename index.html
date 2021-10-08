@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - loader - ttf</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+	</head>
+	<body>
+		<script src="./opentype.min.js"></script>
+		<script src="./three.min.js"></script>
+		<script src="./TTFLoader.js"></script>
+		<script src="./scoreoutputer.min.js"></script>
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+
+		<script>
+			//score outputer
+			let = so = new ScoreOutputer("107590030");
+      		so.installCSS(function(){
+        		so.addChild("創建場景", 2, true);
+    	    	so.addChild("讀取字形檔", 2, true);
+    	    	so.addChild("將地支以圓圈排列", 2, true);
+    	    	so.addChild("滑鼠點擊 12 地支分別跳轉網頁", 1, true);
+    	    	so.addChild("顯示高等計算機圖學作業", 1, true);
+    	    	so.addChild("時鐘效果", 1, false);
+    	    	so.addChild("任何 ply 格式模型", 1, false);
+
+   		    	so.renderModal(
+    	      		document.body,
+        	  		'rgba(100, 45, 58, 1)',
+        	  		'white',
+        	  		'15pt',
+        	  		'15px',
+        	  		dialogTitle='自我評分表 (助教測試用)'
+        		);
+
+        		so.installDownloadBtn();
+        		so.renderBtn(document.body, "開啟自評表");
+      		});
+			
+			//variables declared
+			let container;
+			let camera, cameraTarget, scene, renderer;
+			let group, textMesh1, textMesh2, textGeo, material, circleBase, clockGroup, circleGroup;
+			let firstLetter = true;
+			let objects = [];
+			//create scene
+			scene = new THREE.Scene();
+			scene.background = new THREE.Color(0x000000);
+			
+			//requirment
+			let text = "高等計算機圖學作業";
+			const height = 1,
+				size = 28,
+				hover = 10,
+				curveSegments = 4,
+				bevelThickness = 1,
+				bevelSize = 0;
+
+			let font = null;
+			const mirror = true;
+
+			let targetRotation = 0;
+			let targetRotationOnPointerDown = 0;
+
+			let pointerX = 0;
+			let pointerXOnPointerDown = 0;
+
+			let windowHalfX = window.innerWidth / 2;
+
+			init();
+			animate();
+
+			function init() {
+
+				container = document.createElement( 'div' );
+				document.body.appendChild( container );
+
+				// CAMERA
+
+				camera = new THREE.PerspectiveCamera( 30, window.innerWidth / window.innerHeight, 1, 1500 );
+				camera.position.set( 0, 400, 800 );
+
+				cameraTarget = new THREE.Vector3( 0, 250, 0 );
+
+				// SCENE
+
+				scene = new THREE.Scene();
+				scene.background = new THREE.Color( 0x000000 );
+				scene.fog = new THREE.Fog( 0x000000, 250, 1400 );
+
+				// LIGHTS
+
+				const dirLight = new THREE.DirectionalLight( 0xffffff, 0.125 );
+				dirLight.position.set( 0, 0, 1 ).normalize();
+				scene.add( dirLight );
+
+				const pointLight = new THREE.PointLight( 0xffffff, 1.5 );
+				pointLight.position.set( 0, 100, 90 );
+				pointLight.color.setHSL( Math.random(), 1, 0.5 );
+				scene.add( pointLight );
+
+				material = new THREE.MeshPhongMaterial( { color: 0xffffff, flatShading: true } );
+
+				group = new THREE.Group();
+				group.position.y = 100;
+
+				scene.add( group );
+
+				const baseGeo = new THREE.CylinderGeometry(150, 150, 5, 32);
+        		const baseMat = new THREE.MeshBasicMaterial({ color: 0x1aff69 });
+				const circleBase = new THREE.Mesh(baseGeo, baseMat);
+        		circleBase.material.transparent = true;
+        		circleBase.material.opacity = 0.5;
+        		circleBase.position.set(0, 200, 0);
+        		circleBase.rotation.x = (90 * Math.PI) / 180;
+				//text loaded
+				const loader = new THREE.TTFLoader();
+				
+        		//the white bottom
+        		const plane = new THREE.Mesh(
+          			new THREE.PlaneGeometry(500, 750),
+          			new THREE.MeshBasicMaterial({ color: 0xf0f0f0 })
+        		);
+
+        		plane.position.y = 10;
+        		plane.rotation.x = (270 * Math.PI) / 180;
+        		group.add(plane);
+				//更改字型
+				loader.load( "./edukai-4.0.ttf", function ( json ) {
+					font = new THREE.Font( json );
+					createText();
+					//地支
+					insertCircle("子", circleBase.position.x, circleBase.position.y + 125, 'https://ntut-cg-lab.github.io/cg2021f-hw01-cj6u4/');
+					insertCircle("丑", circleBase.position.x + 60, circleBase.position.y + 100, 'https://ntut-cg-lab.github.io/cg2021f-hw02-cj6u4/');
+					insertCircle("寅", circleBase.position.x + 100, circleBase.position.y + 60, 'https://ntut-cg-lab.github.io/cg2021f-hw03-cj6u4/');
+					insertCircle("卯", circleBase.position.x + 125, circleBase.position.y, 'https://ntut-cg-lab.github.io/cg2021f-hw04-cj6u4/');
+					insertCircle("辰", circleBase.position.x + 100, circleBase.position.y - 60, 'https://ntut-cg-lab.github.io/cg2021f-hw05-cj6u4/');
+					insertCircle("巳", circleBase.position.x + 60, circleBase.position.y - 100, 'https://ntut-cg-lab.github.io/cg2021f-hw06-cj6u4/');
+					insertCircle("午", circleBase.position.x, circleBase.position.y - 125, 'https://ntut-cg-lab.github.io/cg2021f-hw07-cj6u4/');
+					insertCircle("未", circleBase.position.x - 60, circleBase.position.y - 100, 'https://ntut-cg-lab.github.io/cg2021f-hw08-cj6u4/');
+					insertCircle("申", circleBase.position.x - 100, circleBase.position.y - 60, 'https://ntut-cg-lab.github.io/cg2021f-hw09-cj6u4/');
+					insertCircle("酉", circleBase.position.x - 125, circleBase.position.y, 'https://ntut-cg-lab.github.io/cg2021f-hw10-cj6u4/');
+					insertCircle("戌", circleBase.position.x - 100, circleBase.position.y + 60, 'https://ntut-cg-lab.github.io/cg2021f-hw11-cj6u4/');
+					insertCircle("亥", circleBase.position.x - 60, circleBase.position.y + 100, 'https://ntut-cg-lab.github.io/cg2021f-hw12-cj6u4/');
+
+				} );
+
+				circleGroup = new THREE.Group();
+        		circleGroup.add(circleBase);
+
+				clockGroup = new THREE.Group();
+        		circleGroup.add(clockGroup);
+
+        		clockTextGroup = new THREE.Group();
+        		circleGroup.add(clockTextGroup);
+        
+        		group.add(circleGroup);
+        		group.add(clockGroup);
+				function insertCircle(value, x, y, link) {
+        			// Clock 
+        			circleG = new THREE.CylinderGeometry(20, 20, 5, 32);
+        			circleM = new THREE.MeshBasicMaterial({ color: 0x4b458e });
+        			clock = new THREE.Mesh(circleG, circleM);
+        			clock.position.set(x, y, 5);
+        			clock.rotation.x = (90 * Math.PI) / 180
+        			clockGroup.add(clock);
+
+        			//地支
+					textGeo = new THREE.TextGeometry(value, {
+          				font: font,
+          				size: 20,
+          				height: 2,
+          				curveSegments: curveSegments,
+          				bevelThickness: 0,
+          				bevelSize: bevelSize,
+          				bevelEnabled: true,
+        			});
+        			textGeo.userData = { url : link };
+        			textGeo.computeBoundingBox();
+        			textGeo.computeVertexNormals();
+
+        			const clockTextMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        			clockText = new THREE.Mesh(textGeo, clockTextMat);
+        			clockText.position.set(x - 12.5, y - 8.5, 6)
+        			clockTextGroup.add(clockText);
+        			objects.push(clockText);
+      			}
+
+				// RENDERER
+
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				container.appendChild( renderer.domElement );
+
+				// EVENTS
+
+				container.style.touchAction = 'none';
+				container.addEventListener( 'pointerdown', onPointerDown );
+
+				document.addEventListener( 'keypress', onDocumentKeyPress );
+				document.addEventListener( 'keydown', onDocumentKeyDown );
+
+				document.addEventListener( 'mousedown', onDocumentMouseDown );
+				document.addEventListener( 'mousemove', onDocumentMouseMove );
+
+				window.addEventListener( 'resize', onWindowResize );
+
+			}
+			//點地支的反應
+			function onDocumentMouseDown(event) {
+          		event.preventDefault();
+
+          		let vector = new THREE.Vector3(( event.clientX / window.innerWidth ) * 2 - 1, -( event.clientY / window.innerHeight ) * 2 + 1, 0.5);
+          		vector = vector.unproject(camera);
+          		let raycaster = new THREE.Raycaster(camera.position, vector.sub(camera.position).normalize());
+          		const intersects = raycaster.intersectObjects(objects);
+
+          		if (intersects.length > 0) {
+            		$('html,body').css('cursor', 'pointer');
+            		window.open(intersects[0].object.geometry.userData.url);
+          		}
+      		}
+			//指到地支要變手指
+			function onDocumentMouseMove(event) {
+          		let mouse = new THREE.Vector2();
+          		mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+          		mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+
+          		let raycaster = new THREE.Raycaster();
+          		raycaster.setFromCamera( mouse, camera );
+
+          		const intersects = raycaster.intersectObjects(objects);
+
+          		if(intersects.length > 0) $('html,body').css('cursor', 'pointer'); 
+			  	else $('html,body').css('cursor', 'default');
+      		}
+
+			function onWindowResize() {
+
+				windowHalfX = window.innerWidth / 2;
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+			}
+
+			function onDocumentKeyDown( event ) {
+
+				if ( firstLetter ) {
+
+					firstLetter = false;
+					text = '';
+
+				}
+
+				const keyCode = event.keyCode;
+
+				// backspace
+
+				if ( keyCode === 8 ) {
+
+					event.preventDefault();
+
+					text = text.substring( 0, text.length - 1 );
+					refreshText();
+
+					return false;
+
+				}
+
+			}
+
+			function onDocumentKeyPress( event ) {
+
+				const keyCode = event.which;
+
+				// backspace
+
+				if ( keyCode === 8 ) {
+
+					event.preventDefault();
+
+				} else {
+
+					const ch = String.fromCharCode( keyCode );
+					text += ch;
+
+					refreshText();
+
+				}
+
+			}
+
+			function createText() {
+
+				textGeo = new THREE.TextGeometry( text, {
+
+					font: font,
+
+					size: size,
+					height: height,
+					curveSegments: curveSegments,
+
+					bevelThickness: bevelThickness,
+					bevelSize: bevelSize,
+					bevelEnabled: true
+
+				} );
+
+				textGeo.computeBoundingBox();
+				textGeo.computeVertexNormals();
+
+				const centerOffset = - 0.5 * ( textGeo.boundingBox.max.x - textGeo.boundingBox.min.x );
+
+				textMesh1 = new THREE.Mesh( textGeo, material );
+
+				textMesh1.position.x = centerOffset;
+				textMesh1.position.y = hover;
+				textMesh1.position.z = 0;
+
+				textMesh1.rotation.x = (270 * Math.PI) / 180;
+				textMesh1.rotation.y = Math.PI * 2;
+
+				group.add( textMesh1 );
+
+				if ( mirror ) {
+
+					textMesh2 = new THREE.Mesh( textGeo, material );
+
+					textMesh2.position.x = centerOffset;
+					textMesh2.position.y = - hover;
+					textMesh2.position.z = height;
+
+					textMesh2.rotation.x = Math.PI;
+					textMesh2.rotation.y = Math.PI * 2;
+
+					group.add( textMesh2 );
+
+				}
+
+			}
+
+			function refreshText() {
+
+				group.remove( textMesh1 );
+				if ( mirror ) group.remove( textMesh2 );
+
+				if ( ! text ) return;
+
+				createText();
+
+			}
+
+			function onPointerDown( event ) {
+
+				if ( event.isPrimary === false ) return;
+
+				pointerXOnPointerDown = event.clientX - windowHalfX;
+				targetRotationOnPointerDown = targetRotation;
+
+				document.addEventListener( 'pointermove', onPointerMove );
+				document.addEventListener( 'pointerup', onPointerUp );
+
+			}
+
+			function onPointerMove( event ) {
+
+				if ( event.isPrimary === false ) return;
+
+				pointerX = event.clientX - windowHalfX;
+
+				targetRotation = targetRotationOnPointerDown + ( pointerX - pointerXOnPointerDown ) * 0.02;
+
+			}
+
+			function onPointerUp() {
+
+				if ( event.isPrimary === false ) return;
+
+				document.removeEventListener( 'pointermove', onPointerMove );
+				document.removeEventListener( 'pointerup', onPointerUp );
+
+			}
+
+			//
+
+			function animate() {
+
+				requestAnimationFrame( animate );
+
+				group.rotation.y += ( targetRotation - group.rotation.y ) * 0.05;
+
+				camera.lookAt( cameraTarget );
+
+				renderer.render( scene, camera );
+
+			}
+
+		</script>
+
+	</body>
+</html>
